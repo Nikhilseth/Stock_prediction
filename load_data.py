@@ -11,6 +11,7 @@ import random
 import matplotlib.pyplot as plt
 
 data_path = r'.\Dataset\Stocks'
+# data_path = os.path.expanduser("~/Documents/Github/Dataset/Stocks") #for Mac
 filenames = [os.path.join(data_path,f) for f in os.listdir(data_path) if f.endswith('.txt') and os.path.getsize(os.path.join(data_path,f)) > 0]
 
 data = []
