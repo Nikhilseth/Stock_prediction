@@ -9,7 +9,9 @@ import os
 import numpy as np
 import pandas as pd
 import random
+from sklearn.metrics import mean_absolute_error
 import stock_utils
+import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 import plotly.io as pio
 pio.renderers.default = 'browser'
@@ -96,3 +98,30 @@ nn_model = stock_utils.build_model(LSTM_training_inputs,output_size=1,neurons=32
 
 #train model
 nn_history = nn_model.fit(LSTM_training_inputs,LSTM_training_outputs,epochs=5,batch_size=1,verbose=2,shuffle=True)
+LSTM_test_predictions = nn_model.predict(LSTM_test_inputs)
+
+#plot predictions
+plt.figure()
+plt.plot(LSTM_test_outputs,label='actual')
+plt.plot(LSTM_test_predictions,label='predicted')
+plt.legend()
+plt.title('Predicted and true outputs from LSTM Model: '+df['Label'][0])
+plt.ylabel('Closing Price')
+plt.xlabel('Time')
+
+MAE = mean_absolute_error(LSTM_test_outputs,LSTM_test_predictions)
+print('MAE is: {}'.format(MAE))
+
+#predict full sequence
+predictions = stock_utils.predict_sequence_full(nn_model,LSTM_test_inputs,10)
+
+plt.figure()
+plt.plot(predictions,label='predicted')
+plt.plot(LSTM_test_outputs,label='actual')
+plt.legend()
+plt.title('Full Sequence Prediction: '+df['Label'][0])
+plt.ylabel('Closing Price')
+plt.xlabel('Time')
+
+MAE = mean_absolute_error(LSTM_test_outputs,predictions)
+print('Full Sequence MAE is: {}'.format(MAE))
