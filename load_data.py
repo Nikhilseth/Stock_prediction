@@ -9,6 +9,7 @@ import os
 import numpy as np
 import pandas as pd
 import random
+import stock_utils
 import plotly.graph_objects as go
 import plotly.io as pio
 pio.renderers.default = 'browser'
@@ -52,7 +53,7 @@ fig.update_xaxes(title_text='Date')
 fig.update_yaxes(title_text='Close Price')
 fig.show()
 
-#%% create windows
+#%% create windows 
 df = data[0]
 window_len = 10
 
@@ -75,3 +76,23 @@ LSTM_training_outputs = (training_set['Close'][window_len:].values/training_set[
 
 LSTM_training_inputs = [np.array(LSTM_training_input) for LSTM_training_input in LSTM_training_inputs]
 LSTM_training_inputs = np.array(LSTM_training_inputs)
+
+#create testing windows
+LSTM_test_inputs = []
+for i in range(len(test_set)-window_len):
+    temp_set = test_set[i:(i+window_len)].copy()
+    
+    for col in list(temp_set):
+        temp_set[col] = temp_set[col]/temp_set[col].iloc[0]-1
+    
+    LSTM_test_inputs.append(temp_set)
+LSTM_test_outputs = (test_set['Close'][window_len:].values/test_set['Close'][:-window_len].values)-1
+
+LSTM_test_inputs = [np.array(LSTM_test_input) for LSTM_test_input in LSTM_test_inputs]
+LSTM_test_inputs = np.array(LSTM_test_inputs)
+
+#%% build and train model architecture
+nn_model = stock_utils.build_model(LSTM_training_inputs,output_size=1,neurons=32)
+
+#train model
+nn_history = nn_model.fit(LSTM_training_inputs,LSTM_training_outputs,epochs=5,batch_size=1,verbose=2,shuffle=True)
