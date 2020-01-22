@@ -16,11 +16,18 @@ import plotly.graph_objects as go
 import plotly.io as pio
 pio.renderers.default = 'browser'
 
-data_path = r'.\Dataset\Stocks'
-# data_path = os.path.expanduser("~/Documents/Github/Dataset/Stocks") #for Mac
-filenames = [os.path.join(data_path,f) for f in os.listdir(data_path) if f.endswith('.txt') and os.path.getsize(os.path.join(data_path,f)) > 0]
 
-filenames = random.sample(filenames,5)
+stock_names = ["aapl", "ibm", "amd", "hpq", "xrx", "msft"]
+
+for i in range(len(stock_names)):
+    stock_names[i] +=".us.txt"
+
+# data_path = r'.\Dataset\Stocks'
+data_path = os.path.expanduser("~/Documents/Github/Dataset/Stocks") #for Mac
+# filenames = [os.path.join(data_path,f) for f in os.listdir(data_path) if f.endswith('.txt') and os.path.getsize(os.path.join(data_path,f)) > 0]
+# filenames = random.sample(filenames,5)
+filenames = [os.path.join(data_path, f) for f in stock_names]
+
 data = []
 for file in filenames:
     
@@ -56,8 +63,8 @@ fig.update_yaxes(title_text='Close Price')
 fig.show()
 
 #%% create windows 
-df = data[0]
-window_len = 10
+df = data[0] #takes the first stock
+window_len = 10 #number of days of closes for window
 
 #split train and test set
 split_date = list(data[0]['Date'][-(2*window_len+1):])[0]
