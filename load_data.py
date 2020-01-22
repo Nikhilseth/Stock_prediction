@@ -63,7 +63,7 @@ fig.update_yaxes(title_text='Close Price')
 fig.show()
 
 #%% create windows 
-df = data[0] #takes the first stock
+df = data[0] #takes the first stock for what we will predict
 window_len = 10 #number of days of closes for window
 
 #split train and test set
