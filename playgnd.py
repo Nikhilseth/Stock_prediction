@@ -7,7 +7,7 @@ Created on Tue Jan 21 22:23:52 2020
 """
 
 import os
-
+ 
 stock_names = ["aapl", "ibm", "amd", "hpq", "xrx", "msft"]
 
 for i in range(len(stock_names)):
