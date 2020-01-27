@@ -7,60 +7,22 @@ Created on Sat Jan 11 13:27:12 2020
 
 import os
 import numpy as np
-import pandas as pd
-import random
 from sklearn.metrics import mean_absolute_error
 import stock_utils
-import matplotlib.pyplot as plt
-import plotly.graph_objects as go
-import plotly.io as pio
-pio.renderers.default = 'browser'
-
 
 stock_names = ["aapl", "ibm", "amd", "hpq", "xrx", "msft"]
 
-for i in range(len(stock_names)):
-    stock_names[i] +=".us.txt"
+ext = '.us.txt'
+data_path = r'.\Dataset\Stocks'
+# data_path = os.path.expanduser("~/Documents/Github/Dataset/Stocks") #for Mac
+filenames = [os.path.join(data_path,f) for f in os.listdir(data_path) if f.endswith('.txt') and os.path.getsize(os.path.join(data_path,f)) > 0]
+# filenames = np.random.sample(filenames,5)
+# filenames = [os.path.join(data_path, f+ext) for f in stock_names]
 
-# data_path = r'.\Dataset\Stocks'
-data_path = os.path.expanduser("~/Documents/Github/Dataset/Stocks") #for Mac
-# filenames = [os.path.join(data_path,f) for f in os.listdir(data_path) if f.endswith('.txt') and os.path.getsize(os.path.join(data_path,f)) > 0]
-# filenames = random.sample(filenames,5)
-filenames = [os.path.join(data_path, f) for f in stock_names]
-
-data = []
-for file in filenames:
-    
-    df = pd.read_csv(file)
-    
-    df['Label'] = file.split('\\')[-1].split('.')[0]
-    df['Date'] = pd.to_datetime(df['Date'])
-    data.append(df)
-    
+data = stock_utils.load_data(filenames)
 
 #%% plot sample of data    
-r = lambda: random.randint(0,255)
-traces = []
-
-for df in data:
-    clr_str = 'rgb('+str(r())+','+str(r())+','+str(r())+')'
-    
-    df = df.sort_values('Date')
-    label = df['Label'].iloc[0]
-    
-    trace = go.Scattergl(
-        x=df['Date'],
-        y=df['Close'],
-        mode='lines',
-        line=dict(color=clr_str),
-        name=label)
-    traces.append(trace)
-    
-layout = go.Layout(title='Sample plot of Stocks')
-fig = go.Figure(data=traces,layout=layout)
-fig.update_xaxes(title_text='Date')
-fig.update_yaxes(title_text='Close Price')
-fig.show()
+stock_utils.plot_sample_data(data)
 
 #%% create windows 
 df = data[0] #takes the first stock for what we will predict
@@ -107,14 +69,8 @@ nn_model = stock_utils.build_model(LSTM_training_inputs,output_size=1,neurons=32
 nn_history = nn_model.fit(LSTM_training_inputs,LSTM_training_outputs,epochs=5,batch_size=1,verbose=2,shuffle=True)
 LSTM_test_predictions = nn_model.predict(LSTM_test_inputs)
 
-#plot predictions
-plt.figure()
-plt.plot(LSTM_test_outputs,label='actual')
-plt.plot(LSTM_test_predictions,label='predicted')
-plt.legend()
-plt.title('Predicted and true outputs from LSTM Model: '+df['Label'][0])
-plt.ylabel('Closing Price')
-plt.xlabel('Time')
+title = 'Predicted and true outputs from LSTM Model: '+data['Label'][0]
+stock_utils.plot_predictions(LSTM_test_predictions,LSTM_test_outputs,title)
 
 MAE = mean_absolute_error(LSTM_test_outputs,LSTM_test_predictions)
 print('MAE is: {}'.format(MAE))
@@ -122,13 +78,8 @@ print('MAE is: {}'.format(MAE))
 #predict full sequence
 predictions = stock_utils.predict_sequence_full(nn_model,LSTM_test_inputs,10)
 
-plt.figure()
-plt.plot(predictions,label='predicted')
-plt.plot(LSTM_test_outputs,label='actual')
-plt.legend()
-plt.title('Full Sequence Prediction: '+df['Label'][0])
-plt.ylabel('Closing Price')
-plt.xlabel('Time')
+title = 'Full Sequence Prediction: '+df['Label'][0]
+stock_utils.plot_predictions(predictions,LSTM_test_outputs,title)
 
 MAE = mean_absolute_error(LSTM_test_outputs,predictions)
 print('Full Sequence MAE is: {}'.format(MAE))
