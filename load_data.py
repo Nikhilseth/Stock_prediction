@@ -9,6 +9,7 @@ import os
 import numpy as np
 import pandas as pd
 import random
+import tensorflow as tf
 from sklearn.metrics import mean_absolute_error
 import stock_utils
 import matplotlib.pyplot as plt
@@ -39,8 +40,8 @@ for file in filenames:
     
 
 #%% plot sample of data    
-r = lambda: random.randint(0,255)
-traces = []
+# r = lambda: random.randint(0,255)
+# traces = []
 
 for df in data:
     clr_str = 'rgb('+str(r())+','+str(r())+','+str(r())+')'
@@ -48,19 +49,19 @@ for df in data:
     df = df.sort_values('Date')
     label = df['Label'].iloc[0]
     
-    trace = go.Scattergl(
-        x=df['Date'],
-        y=df['Close'],
-        mode='lines',
-        line=dict(color=clr_str),
-        name=label)
-    traces.append(trace)
+#     trace = go.Scattergl(
+#         x=df['Date'],
+#         y=df['Close'],
+#         mode='lines',
+#         line=dict(color=clr_str),
+#         name=label)
+#     traces.append(trace)
     
-layout = go.Layout(title='Sample plot of Stocks')
-fig = go.Figure(data=traces,layout=layout)
-fig.update_xaxes(title_text='Date')
-fig.update_yaxes(title_text='Close Price')
-fig.show()
+# layout = go.Layout(title='Sample plot of Stocks')
+# fig = go.Figure(data=traces,layout=layout)
+# fig.update_xaxes(title_text='Date')
+# fig.update_yaxes(title_text='Close Price')
+# fig.show()
 
 #%% create windows 
 df = data[0] #takes the first stock for what we will predict
@@ -71,6 +72,8 @@ split_date = list(data[0]['Date'][-(2*window_len+1):])[0]
 training_set, test_set = df[df['Date'] < split_date], df[df['Date'] >= split_date]
 training_set = training_set.drop(['Date','Label','OpenInt'],1)
 test_set = test_set.drop(['Date','Label','OpenInt'],1)
+
+
 
 #create training windows
 LSTM_training_inputs = []

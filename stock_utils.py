@@ -6,6 +6,7 @@ Created on Wed Jan 15 21:09:42 2020
 """
 
 import numpy as np
+import tensorflow as tf
 from keras.models import Sequential
 from keras.layers import Activation, Dense, LSTM, Dropout
 
