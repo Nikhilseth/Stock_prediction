@@ -40,8 +40,8 @@ for file in filenames:
     
 
 #%% plot sample of data    
-# r = lambda: random.randint(0,255)
-# traces = []
+r = lambda: random.randint(0,255)
+traces = []
 
 for df in data:
     clr_str = 'rgb('+str(r())+','+str(r())+','+str(r())+')'
