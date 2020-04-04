@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 print(tf.__version__) 
 
 #%%
-stock_names = ["aapl", "ibm"] #, "amd", "hpq", "xrx", "msft"]
+stock_names = ["aapl", "ibm", "amd", "intc", "msft"]
 
 for i in range(len(stock_names)):
     stock_names[i] +=".us.txt"
@@ -38,22 +38,26 @@ for file in filenames:
 ## Windows
 window_size = 10
 batch_size = 2
-close_train = data[0]['Close'][-200:-21] #, data[0]['Open'][-20:], data[0]['High'][-20:], data[0]['Low'][-20:]]
+predict_size = 1
+close_train = data[0]['Close'][-75:-21] #, data[0]['Open'][-20:], data[0]['High'][-20:], data[0]['Low'][-20:]]
+#print(close_train.size)
 close_test = data[0]['Close'][-20:]
 
 dataset = tf.expand_dims(close_train, axis=-1)
 dataset = tf.data.Dataset.from_tensor_slices(dataset)
-dataset = dataset.window(window_size + 1, shift=10, drop_remainder= True)
-dataset = dataset.flat_map(lambda window: window.batch(window_size + 1))
-dataset = dataset.map(lambda window: (window[:-1], window[-1]))
-# dataset = dataset.shuffle(10)
-dataset = dataset.batch(batch_size).prefetch(1)
+dataset = dataset.window(window_size + predict_size, shift=window_size + predict_size, drop_remainder= True)
+dataset = dataset.flat_map(lambda x: x.batch(window_size + predict_size))
+dataset = dataset.map(lambda x: (x[:-predict_size], x[-predict_size:]))
+## dataset = dataset.shuffle(10)
+dataset = dataset.batch(batch_size, drop_remainder=True).prefetch(1)
 
-#
-#print(dataset)
-#for x, y in dataset:
-#    print(x.numpy())
-#    print(y.numpy())
+#print(close_train)
+print(dataset)
+for x in dataset:
+    print(x)
+for x, y in dataset:
+    print(x.numpy())
+    print(y.numpy())
     
 #%% np.array
 #    data1 = data[0].drop(['Open','High','Low','Date','Volume','Label','OpenInt'],1)
@@ -76,14 +80,14 @@ model = tf.keras.models.Sequential([
 
 optimizer = tf.keras.optimizers.SGD(lr=1e-5, momentum=0.9)
 model.compile(loss=tf.keras.losses.Huber(), optimizer=optimizer, metrics=["mae"])
-history = model.fit(dataset, epochs=100)
+history = model.fit(dataset, epochs=10)
 
-ds = tf.expand_dims(close_test, axis=-1)
-ds = tf.data.Dataset.from_tensor_slices(ds)
-ds = ds.window(window_size, shift=1, drop_remainder=True)
-ds = ds.flat_map(lambda w: w.batch(window_size))
-ds = ds.batch(batch_size).prefetch(1)
-forecast = model.predict(ds)
+#ds = tf.expand_dims(close_test, axis=-1)
+#ds = tf.data.Dataset.from_tensor_slices(ds)
+#ds = ds.window(window_size, shift=1, drop_remainder=True)
+#ds = ds.flat_map(lambda w: w.batch(window_size))
+#ds = ds.batch(batch_size).prefetch(1)
+#forecast = model.predict(ds)
 
 #%%
 #tf.keras.metrics.mean_absolute_error(close_test, forecast).numpy()
