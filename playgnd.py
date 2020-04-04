@@ -12,7 +12,7 @@ import pandas as pd
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
-print(tf.__version__)
+print(tf.__version__) 
 
 #%%
 stock_names = ["aapl", "ibm"] #, "amd", "hpq", "xrx", "msft"]
