@@ -37,19 +37,23 @@ for file in filenames:
 
 ## Windows
 window_size = 10
-batch_size = 2
-predict_size = 1
-close_train = data[0]['Close'][-75:-21] #, data[0]['Open'][-20:], data[0]['High'][-20:], data[0]['Low'][-20:]]
+batch_size = 1
+predict_size = 1 #The model fails if you make this >1, doesn't seem to be able to handle it
+close_train = data[0]['Close'][-45:-21] #, data[0]['Open'][-20:], data[0]['High'][-20:], data[0]['Low'][-20:]]
 #print(close_train.size)
-close_test = data[0]['Close'][-20:]
+close_test = data[0]['Close'][-11:]
 
-dataset = tf.expand_dims(close_train, axis=-1)
-dataset = tf.data.Dataset.from_tensor_slices(dataset)
-dataset = dataset.window(window_size + predict_size, shift=window_size + predict_size, drop_remainder= True)
-dataset = dataset.flat_map(lambda x: x.batch(window_size + predict_size))
-dataset = dataset.map(lambda x: (x[:-predict_size], x[-predict_size:]))
-## dataset = dataset.shuffle(10)
-dataset = dataset.batch(batch_size, drop_remainder=True).prefetch(1)
+def create_ds(ds):
+    dataset = tf.expand_dims(ds, axis=-1)
+    dataset = tf.data.Dataset.from_tensor_slices(dataset)
+    dataset = dataset.window(window_size + predict_size, shift=window_size + predict_size, drop_remainder= True)
+    dataset = dataset.flat_map(lambda x: x.batch(window_size + predict_size))
+    dataset = dataset.map(lambda x: (x[:-predict_size], x[-predict_size:]))
+    dataset = dataset.shuffle(10)
+    dataset = dataset.batch(batch_size, drop_remainder=True).prefetch(1)
+    return dataset
+
+dataset = create_ds(close_test)
 
 #print(close_train)
 print(dataset)
@@ -59,7 +63,7 @@ for x, y in dataset:
     print(x.numpy())
     print(y.numpy())
     
-#%% np.array
+#%% Model Creation & Fit
 #    data1 = data[0].drop(['Open','High','Low','Date','Volume','Label','OpenInt'],1)
 #    data2 = data[0]['Close']
 #    print(data1)
@@ -78,16 +82,40 @@ model = tf.keras.models.Sequential([
   tf.keras.layers.Lambda(lambda x: x * 400)
 ])
 
+
 optimizer = tf.keras.optimizers.SGD(lr=1e-5, momentum=0.9)
 model.compile(loss=tf.keras.losses.Huber(), optimizer=optimizer, metrics=["mae"])
 history = model.fit(dataset, epochs=10)
 
-#ds = tf.expand_dims(close_test, axis=-1)
-#ds = tf.data.Dataset.from_tensor_slices(ds)
+
+#%% Prediction
+
+ds = tf.expand_dims(close_test, axis=-1)
+ds = tf.data.Dataset.from_tensor_slices(ds)
 #ds = ds.window(window_size, shift=1, drop_remainder=True)
-#ds = ds.flat_map(lambda w: w.batch(window_size))
-#ds = ds.batch(batch_size).prefetch(1)
-#forecast = model.predict(ds)
+ds = ds.window(window_size, shift=window_size + predict_size, drop_remainder= True)
+ds = ds.flat_map(lambda w: w.batch(window_size))
+ds = ds.batch(batch_size, drop_remainder=True).prefetch(1)
+forecast = model.predict(ds)
+
+#print(dataset)
+print(close_test)
+print(forecast)
+#print(ds)
+#for x in ds:
+#    print(x)
+
+#forecast = model.predict(close_test[0:window_size])
+#print(close_test)
+#print(forecast)
+
+#plt.figure()
+#plt.plot(close_test,label='actual')
+#plt.plot(forecast[0],label='predicted')
+#plt.legend()
+#plt.title('Predicted and true outputs from LSTM Model: ' + df['Label'][0])
+#plt.ylabel('Closing Price')
+#plt.xlabel('Time')
 
 #%%
 #tf.keras.metrics.mean_absolute_error(close_test, forecast).numpy()
