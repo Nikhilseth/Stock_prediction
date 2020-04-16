@@ -36,39 +36,47 @@ for file in filenames:
     data.append(df)
 
 ## Windows
+split_time = 121
 window_size = 10
-batch_size = 1
+batch_size = 32
 predict_size = 1 #The model fails if you make this >1, doesn't seem to be able to handle it
-close_train = data[0]['Close'][-45:-21] #, data[0]['Open'][-20:], data[0]['High'][-20:], data[0]['Low'][-20:]]
+close_train = data[0]['Close'][:-split_time] #, data[0]['Open'][-20:], data[0]['High'][-20:], data[0]['Low'][-20:]]
 #print(close_train.size)
-close_test = data[0]['Close'][-11:]
-
+close_test = data[0]['Close'][-split_time:]
+#print(close_train.shape)
 def create_ds(ds):
     dataset = tf.expand_dims(ds, axis=-1)
     dataset = tf.data.Dataset.from_tensor_slices(dataset)
     dataset = dataset.window(window_size + predict_size, shift=window_size + predict_size, drop_remainder= True)
     dataset = dataset.flat_map(lambda x: x.batch(window_size + predict_size))
     dataset = dataset.map(lambda x: (x[:-predict_size], x[-predict_size:]))
-    dataset = dataset.shuffle(10)
-    dataset = dataset.batch(batch_size, drop_remainder=True).prefetch(1)
+#    dataset = dataset.shuffle(10)
+    dataset = dataset.batch(batch_size).prefetch(1)
     return dataset
 
-dataset = create_ds(close_test)
+def predict_ds(train_set):
+    ds = tf.expand_dims(train_set, axis=-1)
+    ds = tf.data.Dataset.from_tensor_slices(ds)
+    ds = ds.window(window_size, shift=window_size + predict_size, drop_remainder= True)
+    ds = ds.flat_map(lambda w: w.batch(window_size))
+    ds = ds.batch(batch_size).prefetch(1) 
+    forecast = model.predict(ds)
+    return forecast
 
-#print(close_train)
+dataset = create_ds(close_train)
+
 print(dataset)
-for x in dataset:
-    print(x)
-for x, y in dataset:
-    print(x.numpy())
-    print(y.numpy())
+#for x, y in dataset:
+#    print(x.numpy())
+#    print(y.numpy())
     
 #%% Model Creation & Fit
 #    data1 = data[0].drop(['Open','High','Low','Date','Volume','Label','OpenInt'],1)
 #    data2 = data[0]['Close']
 #    print(data1)
 #    print(tf.expand_dims(data2, axis=-1))
-    
+
+tf.keras.backend.clear_session()
 model = tf.keras.models.Sequential([
   tf.keras.layers.Conv1D(filters=32, kernel_size=5,
                       strides=1, padding="causal",
@@ -85,22 +93,16 @@ model = tf.keras.models.Sequential([
 
 optimizer = tf.keras.optimizers.SGD(lr=1e-5, momentum=0.9)
 model.compile(loss=tf.keras.losses.Huber(), optimizer=optimizer, metrics=["mae"])
-history = model.fit(dataset, epochs=10)
+history = model.fit(dataset, epochs=50)
 
 
 #%% Prediction
 
-ds = tf.expand_dims(close_test, axis=-1)
-ds = tf.data.Dataset.from_tensor_slices(ds)
-#ds = ds.window(window_size, shift=1, drop_remainder=True)
-ds = ds.window(window_size, shift=window_size + predict_size, drop_remainder= True)
-ds = ds.flat_map(lambda w: w.batch(window_size))
-ds = ds.batch(batch_size, drop_remainder=True).prefetch(1)
-forecast = model.predict(ds)
-
+forecast = predict_ds(close_test)
+forecast = forecast[split_time - window_size:-1, -1, 0]
 #print(dataset)
-print(close_test)
-print(forecast)
+#print(close_test)
+print(forecast.shape)
 #print(ds)
 #for x in ds:
 #    print(x)
