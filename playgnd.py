@@ -7,12 +7,13 @@ Created on Tue Jan 21 22:23:52 2020
 """
 
 import os
+import csv
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
-print(tf.__version__) 
+#print(tf.__version__) 
 
 #%%
 stock_names = ["aapl", "ibm", "amd", "intc", "msft"]
@@ -36,49 +37,50 @@ for file in filenames:
     data.append(df)
 
 ## Windows
-split_time = 121
-window_size = 10
-batch_size = 32
+split_time = 500
+window_size = 60#40
+batch_size = 100
 predict_size = 1 #The model fails if you make this >1, doesn't seem to be able to handle it
-close_train = data[0]['Close'][:-split_time] #, data[0]['Open'][-20:], data[0]['High'][-20:], data[0]['Low'][-20:]]
+time_step = range(len(data[0]['Date']))
+close_series = data[0]['Close']
+close_train = close_series[-5000:-split_time] #, data[0]['Open'][-20:], data[0]['High'][-20:], data[0]['Low'][-20:]]
 #print(close_train.size)
-close_test = data[0]['Close'][-split_time:]
+close_test = close_series[-split_time:]
 #print(close_train.shape)
+
+def plot_series(time, series, format="-", start=0, end=None):
+    plt.plot(time[start:end], series[start:end], format)
+    plt.xlabel("Time")
+    plt.ylabel("Value")
+    plt.grid(True)
+    
 def create_ds(ds):
     dataset = tf.expand_dims(ds, axis=-1)
     dataset = tf.data.Dataset.from_tensor_slices(dataset)
-    dataset = dataset.window(window_size + predict_size, shift=window_size + predict_size, drop_remainder= True)
+    dataset = dataset.window(window_size + predict_size, shift=1, drop_remainder= True)
     dataset = dataset.flat_map(lambda x: x.batch(window_size + predict_size))
     dataset = dataset.map(lambda x: (x[:-predict_size], x[-predict_size:]))
-#    dataset = dataset.shuffle(10)
+    dataset = dataset.shuffle(10)
     dataset = dataset.batch(batch_size).prefetch(1)
     return dataset
 
-def predict_ds(train_set):
-    ds = tf.expand_dims(train_set, axis=-1)
+def predict_ds(model, series, window_size):
+    ds = tf.expand_dims(series, axis=-1)
     ds = tf.data.Dataset.from_tensor_slices(ds)
-    ds = ds.window(window_size, shift=window_size + predict_size, drop_remainder= True)
+    ds = ds.window(window_size, shift=1, drop_remainder= True)
     ds = ds.flat_map(lambda w: w.batch(window_size))
     ds = ds.batch(batch_size).prefetch(1) 
     forecast = model.predict(ds)
     return forecast
 
+#Create Tensorflow dataset object
 dataset = create_ds(close_train)
-
-print(dataset)
-#for x, y in dataset:
-#    print(x.numpy())
-#    print(y.numpy())
     
 #%% Model Creation & Fit
-#    data1 = data[0].drop(['Open','High','Low','Date','Volume','Label','OpenInt'],1)
-#    data2 = data[0]['Close']
-#    print(data1)
-#    print(tf.expand_dims(data2, axis=-1))
 
 tf.keras.backend.clear_session()
 model = tf.keras.models.Sequential([
-  tf.keras.layers.Conv1D(filters=32, kernel_size=5,
+  tf.keras.layers.Conv1D(filters=60, kernel_size=5,
                       strides=1, padding="causal",
                       activation="relu",
                       input_shape=[None, 1]),
@@ -90,34 +92,63 @@ model = tf.keras.models.Sequential([
   tf.keras.layers.Lambda(lambda x: x * 400)
 ])
 
+#lr_schedule = tf.keras.callbacks.LearningRateScheduler(
+#    lambda epoch: 1e-8 * 10**(epoch / 20))
+#optimizer = tf.keras.optimizers.SGD(lr=1e-8, momentum=0.9)
+#model.compile(loss=tf.keras.losses.Huber(),
+#              optimizer=optimizer,
+#              metrics=["mae"])
+#history = model.fit(dataset, epochs=100, callbacks=[lr_schedule])
 
-optimizer = tf.keras.optimizers.SGD(lr=1e-5, momentum=0.9)
+optimizer = tf.keras.optimizers.SGD(lr=8e-7, momentum=0.9)
 model.compile(loss=tf.keras.losses.Huber(), optimizer=optimizer, metrics=["mae"])
-history = model.fit(dataset, epochs=50)
+history = model.fit(dataset, epochs=200)
+
+#%%
+plt.semilogx(history.history["lr"], history.history["loss"])
+plt.axis([1e-8, 1e-4, 0, 60])
+
+#%% Prediction & Plotting
+
+forecast = predict_ds(model, close_series, window_size)
+#print(forecast[100])
+forecast = forecast[-split_time:, -1, 0]
+print(forecast)
 
 
-#%% Prediction
-
-forecast = predict_ds(close_test)
-forecast = forecast[split_time - window_size:-1, -1, 0]
-#print(dataset)
-#print(close_test)
-print(forecast.shape)
-#print(ds)
-#for x in ds:
-#    print(x)
-
-#forecast = model.predict(close_test[0:window_size])
-#print(close_test)
-#print(forecast)
-
-#plt.figure()
-#plt.plot(close_test,label='actual')
-#plt.plot(forecast[0],label='predicted')
-#plt.legend()
-#plt.title('Predicted and true outputs from LSTM Model: ' + df['Label'][0])
-#plt.ylabel('Closing Price')
-#plt.xlabel('Time')
+plt.figure(figsize=(10, 6))
+plot_series(time_step[-split_time:], close_test)
+plot_series(time_step[-split_time:], forecast)
 
 #%%
 #tf.keras.metrics.mean_absolute_error(close_test, forecast).numpy()
+loss=history.history['loss']
+
+epochs=range(len(loss)) # Get number of epochs
+
+
+#------------------------------------------------
+# Plot training and validation loss per epoch
+#------------------------------------------------
+plt.plot(epochs, loss, 'r')
+plt.title('Training loss')
+plt.xlabel("Epochs")
+plt.ylabel("Loss")
+plt.legend(["Loss"])
+
+plt.figure()
+
+zoomed_loss = loss[100:]
+zoomed_epochs = range(100,len(loss))
+
+
+#------------------------------------------------
+# Plot training and validation loss per epoch
+#------------------------------------------------
+plt.plot(zoomed_epochs, zoomed_loss, 'r')
+plt.title('Training loss')
+plt.xlabel("Epochs")
+plt.ylabel("Loss")
+plt.legend(["Loss"])
+
+plt.figure()
